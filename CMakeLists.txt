@@ -10,11 +10,15 @@ project(lua
 #
 # Two things distinguish it from an ordinary Lua build.
 #
-# The source compiler is absent. lparser.c, lcode.c and ldump.c are not built,
-# and flightdeck/fd_noparser.c supplies the two symbols the remaining sources
-# reference. Scripts are compiled on a development machine and reach the device
-# as binary chunks, which removes the compiler from the image and removes the
-# transient memory a parse would need.
+# The source compiler is optional. By default lparser.c, lcode.c and ldump.c
+# are not built and flightdeck/fd_noparser.c supplies the symbols the remaining
+# sources reference: scripts are compiled on a development machine and reach
+# the device as binary chunks, which keeps the compiler out of the image and
+# out of the arena.
+#
+# LUA_FD_PARSER=ON builds lparser.c and lcode.c so the device accepts source
+# text. That costs flash and, more tightly, arena: a parse holds the whole
+# function under construction alongside the interpreter.
 #
 # Only the libraries a script is permitted to use are built. io, os, package,
 # debug, coroutine and utf8 are absent, so they cannot be opened by accident.
@@ -54,9 +58,18 @@ set(LUA_LIB_SOURCES
     ltablib.c
 )
 
+option(LUA_FD_PARSER "Build the Lua source compiler into the target library" OFF)
+
 set(LUA_FLIGHTDECK_SOURCES
     flightdeck/fd_noparser.c
 )
+
+if(LUA_FD_PARSER)
+    list(APPEND LUA_CORE_SOURCES
+        lparser.c
+        lcode.c
+    )
+endif()
 
 add_library(${PROJECT_NAME} STATIC
     ${LUA_CORE_SOURCES}
@@ -90,6 +103,12 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 target_compile_options(${PROJECT_NAME} PUBLIC
     -include ${CMAKE_CURRENT_LIST_DIR}/flightdeck/luaconf_flightdeck.h
 )
+
+# PUBLIC so that a caller choosing the load mode sees the same view of the
+# library as the library was built with.
+if(LUA_FD_PARSER)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC LUA_FD_WITH_PARSER)
+endif()
 
 # Optimise this target for size and let the linker discard what the permitted
 # library set does not reach. --gc-sections is a link option and belongs to the

@@ -1,22 +1,16 @@
 /*
 ** Flight Deck: stubs for the Lua source compiler.
 **
-** The target build omits lparser.c, lcode.c and ldump.c: scripts are compiled
-** on a development machine and reach the device as binary chunks. Two symbols
-** in the remaining sources still reference the compiler, and both are defined
-** here so that no vendored file has to be edited.
+** ldump.c is never built, so luaU_dump is defined here and reports failure:
+** the device has no reason to write a binary chunk back out.
 **
-**   luaY_parser  ldo.c calls it from f_parser when a chunk does not begin with
-**                LUA_SIGNATURE, that is, when the chunk is source text.
-**   luaU_dump    lapi.c calls it from lua_dump.
+** lparser.c and lcode.c are built only when LUA_FD_WITH_PARSER is defined. In
+** a build without them, luaY_parser is defined here and throws, so a chunk of
+** source text is refused rather than reaching a compiler that is not present.
 **
-** Callers reach these through lua_load and lua_dump, both of which run inside
-** a protected call, so throwing here is reported to the caller as an ordinary
-** Lua error rather than reaching the panic function.
-**
-** The scripts component also passes mode "b" to lua_load, which makes ldo.c
-** reject a text chunk in checkmode before it reaches luaY_parser. This stub is
-** the backstop for any path that does not set a mode.
+** Callers reach both symbols through lua_load and lua_dump, which run inside a
+** protected call, so throwing here is reported as an ordinary Lua error rather
+** than reaching the panic function.
 */
 
 #define fd_noparser_c
@@ -34,6 +28,8 @@
 #include "lundump.h"
 #include "lzio.h"
 
+#if !defined(LUA_FD_WITH_PARSER)
+
 LClosure *luaY_parser(
     lua_State *L, ZIO *z, Mbuffer *buff, Dyndata *dyd, const char *name, int firstchar
 ) {
@@ -47,6 +43,8 @@ LClosure *luaY_parser(
 
     return NULL; /* not reached */
 }
+
+#endif /* !LUA_FD_WITH_PARSER */
 
 int luaU_dump(lua_State *L, const Proto *f, lua_Writer w, void *data, int strip) {
     (void)L;
