@@ -68,6 +68,13 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
+# The maths library. The interpreter reaches it for the ^ and % operators as
+# well as for the math library, so it is a property of Lua rather than of any
+# one application, and is carried here for anything that links Lua.
+target_link_libraries(${PROJECT_NAME} PUBLIC
+    m
+)
+
 # Don't use target_compile_features (toolchain skip breaks feature detection).
 # Force C99 on the target instead.
 set_target_properties(${PROJECT_NAME} PROPERTIES
